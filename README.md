@@ -52,9 +52,8 @@ extract  ->  transform  ->  load
 ├── docs/
 │   ├── schema_conceptuel.md / .mermaid   # modèle conceptuel des données
 │   ├── flux_pipeline.mermaid             # schéma de flux du pipeline
-│   ├── plan_monitoring.md                # plan de surveillance
-│   └── demonstration_soutenance.md       # guide de démonstration
-├── fakeddit/                 # dataset (multimodal_validate.tsv) — NON versionné
+│   └── plan_monitoring.md                # plan de surveillance
+├── fakeddit/                 # dataset (multimodal_validate.tsv)
 ├── images/                   # images téléchargées — NON versionné
 └── data/                     # sorties éventuelles — NON versionné
 ```
