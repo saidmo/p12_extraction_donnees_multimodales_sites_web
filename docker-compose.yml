@@ -1,0 +1,105 @@
+# ---------------------------------------------------------------------------
+# Configuration commune à tous les services Airflow (anchor YAML réutilisable)
+# ---------------------------------------------------------------------------
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.10.5
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # Base de métadonnées d'Airflow = base airflow_db dans Postgres (hôte = nom du service)
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/airflow_db
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false" # pas de DAGs d'exemple
+    # Dépendances des scripts, installées au démarrage
+    _PIP_ADDITIONAL_REQUIREMENTS: "requests feedparser Pillow python-dotenv"
+    # Rend les modules importables et fixe les accès aux DONNÉES (base fakenews)
+    PYTHONPATH: /opt/airflow
+    DB_HOST: postgres # IMPORTANT : dans le conteneur, l'hôte est le nom du service
+    DB_PORT: "5432"
+    DB_NAME: ${DB_NAME:-fakenews}
+    DB_USER: ${DB_USER:-postgres}
+    DB_PASSWORD: ${DB_PASSWORD}
+    CHECKIT_NEWSAPI_KEY: ${CHECKIT_NEWSAPI_KEY}
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./images:/opt/airflow/images
+    - ./extract.py:/opt/airflow/extract.py
+    - ./transform.py:/opt/airflow/transform.py
+    - ./database.py:/opt/airflow/database.py
+    - ./extract_dataset.py:/opt/airflow/extract_dataset.py
+    - ./fakeddit:/opt/airflow/fakeddit
+
+services:
+  # -------------------------------------------------------------------------
+  # 1. Postgres : stocke À LA FOIS les données (fakenews) et, en base
+  #    séparée, les métadonnées d'Airflow (airflow_db, à créer une fois).
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: postgres-fakenews
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-fakenews}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-fakenews}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # 2. Initialisation d'Airflow : migre la base de métadonnées + crée l'admin.
+  #    Service "one-shot" : il tourne une fois puis s'arrête.
+  # -------------------------------------------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username "${AIRFLOW_ADMIN_USER:-admin}" \
+          --password "${AIRFLOW_ADMIN_PASSWORD:-admin}" \
+          --firstname Admin --lastname User --role Admin \
+          --email admin@example.com
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # -------------------------------------------------------------------------
+  # 3. Interface web d'Airflow (http://localhost:8080)
+  # -------------------------------------------------------------------------
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # -------------------------------------------------------------------------
+  # 4. Scheduler : lit les DAGs et déclenche les tâches
+  # -------------------------------------------------------------------------
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:

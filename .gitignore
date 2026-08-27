@@ -1,0 +1,27 @@
+# --- Secrets ---
+.env
+*.key
+
+# --- Données produites par le pipeline (ne pas versionner) ---
+images/
+docu/
+logs/
+
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- Environnements virtuels ---
+.venv/
+venv/
+env/
+
+# --- Éditeurs / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

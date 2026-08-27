@@ -1,0 +1,44 @@
+flowchart TD
+    subgraph SOURCES["Sources"]
+        NA["NewsAPI<br/>(presse, live)"]
+        RSS["Flux RSS<br/>(fact-checkers, live)"]
+        FK["Fakeddit<br/>(dataset labellisé)"]
+    end
+
+    subgraph EXTRACT["1. Extraction"]
+        E1["fetch_newsapi()"]
+        E2["fetch_rss()"]
+        E3["fetch_dataset()"]
+    end
+
+    subgraph TRANSFORM["2. Transformation"]
+        T1["nettoie_texte()<br/>normalise()"]
+        T2["valide_image()<br/>téléchargement + hash"]
+        T3["genere_colonnes()<br/>content_length, word_count"]
+        VAL{"texte + image ?<br/>doublon ?"}
+    end
+
+    subgraph LOAD["3. Chargement"]
+        DB[("PostgreSQL<br/>table publications")]
+    end
+
+    IMG[("images/<br/>fichiers &lt;id&gt;.jpg")]
+    REJ["🗑 rejet"]
+
+    NA --> E1
+    RSS --> E2
+    FK --> E3
+    E1 --> T1
+    E2 --> T1
+    E3 --> T1
+    T1 --> T2
+    T2 --> VAL
+    VAL -->|"non"| REJ
+    VAL -->|"oui"| T3
+    T3 --> DB
+    T2 -. "écrit le binaire" .-> IMG
+
+    ORCH["Apache Airflow<br/>etl_fakenews_xcom · etl_fakenews_staging · seed_fakeddit"]
+    ORCH -. "orchestre" .-> EXTRACT
+    ORCH -. "orchestre" .-> TRANSFORM
+    ORCH -. "orchestre" .-> LOAD

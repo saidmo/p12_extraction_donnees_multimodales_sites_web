@@ -1,0 +1,8 @@
+requests
+psycopg2-binary
+python-dotenv
+Pillow
+feedparser
+# Étape 5 - tableau de bord KPI
+streamlit
+pandas

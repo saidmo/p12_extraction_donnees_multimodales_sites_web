@@ -1,0 +1,16 @@
+erDiagram
+    PUBLICATION {
+        identifiant id "clé unique déterministe · anti-doublon / traçabilité"
+        texte source "nom du média · métadonnée de provenance (PAS un label)"
+        url url "adresse de l'article · traçabilité"
+        texte title "titre · feature NLP"
+        texte content "contenu · feature NLP principale"
+        chemin image_path "image locale · entrée du modèle image"
+        url image_url "URL d'origine de l'image · provenance"
+        code language "langue ISO · filtre et feature"
+        enum label "verdict vrai/faux · CIBLE de classification (défaut inconnu)"
+        entier content_length "longueur du texte · feature dérivée"
+        entier word_count "nombre de mots · feature dérivée"
+        date published_at "date de publication · feature temporelle"
+        date fetched_at "date de récupération · reproductibilité"
+    }
